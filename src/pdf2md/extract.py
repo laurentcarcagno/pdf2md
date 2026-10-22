@@ -1,0 +1,107 @@
+"""Pass 2a: geometric extraction of lines and tables with pdfplumber."""
+
+from __future__ import annotations
+
+import logging
+import re
+from collections.abc import Callable, Iterable
+from pathlib import Path
+from typing import Any
+
+import pdfplumber
+
+from pdf2md.errors import PdfOpenError
+from pdf2md.models import Coordinates, Line, PageContent, Table
+
+logger = logging.getLogger(__name__)
+
+# pdfminer warns once per font about missing FontBBox; the output is unaffected.
+logging.getLogger("pdfminer").setLevel(logging.ERROR)
+
+_MONO_MARKERS = ("mono", "courier", "consolas")
+_LABEL = re.compile(r"^[A-Z][A-Z0-9_]*:")
+
+
+def _line_from_plumber(raw: dict[str, Any], page_number: int) -> Line | None:
+    text = str(raw["text"]).strip()
+    chars = raw.get("chars") or []
+    if not text or not chars:
+        return None
+    sizes = sorted(float(c["size"]) for c in chars)
+    flags = [any(m in str(c["fontname"]).lower() for m in _MONO_MARKERS) for c in chars]
+    # Inline code inside prose must stay prose; a monospace "LABEL:" opening a line is code.
+    is_mono = sum(flags) > len(flags) / 2 or (flags[0] and bool(_LABEL.match(text)))
+    return Line(
+        page_number=page_number,
+        text=text,
+        coords=Coordinates(
+            x0=float(raw["x0"]),
+            x1=float(raw["x1"]),
+            top=float(raw["top"]),
+            bottom=float(raw["bottom"]),
+        ),
+        size=round(sizes[len(sizes) // 2], 1),
+        is_mono=is_mono,
+    )
+
+
+def _center_inside(line: Line, box: Coordinates) -> bool:
+    cx = (line.coords.x0 + line.coords.x1) / 2
+    cy = (line.coords.top + line.coords.bottom) / 2
+    return box.x0 <= cx <= box.x1 and box.top <= cy <= box.bottom
+
+
+def _clean_cell(cell: object) -> str:
+    return " ".join(str(cell or "").split())
+
+
+def _extract_page(page: Any, page_number: int) -> PageContent:
+    tables: list[Table] = []
+    for found in page.find_tables():
+        rows = [[_clean_cell(c) for c in row] for row in found.extract()]
+        rows = [row for row in rows if any(row)]
+        if len(rows) >= 1 and rows and len(rows[0]) >= 2:
+            x0, top, x1, bottom = found.bbox
+            tables.append(
+                Table(
+                    page_number=page_number,
+                    coords=Coordinates(x0=x0, x1=x1, top=top, bottom=bottom),
+                    rows=rows,
+                )
+            )
+    lines: list[Line] = []
+    for raw in page.extract_text_lines():
+        line = _line_from_plumber(raw, page_number)
+        if line and not any(_center_inside(line, t.coords) for t in tables):
+            lines.append(line)
+    return PageContent(
+        page_number=page_number,
+        width=float(page.width),
+        height=float(page.height),
+        lines=lines,
+        tables=tables,
+    )
+
+
+def extract_pages(
+    pdf_path: Path, page_numbers: Iterable[int], on_page: Callable[[int], None] | None = None
+) -> dict[int, PageContent]:
+    """Extract lines and tables of the requested 1-based pages.
+
+    A page that pdfplumber cannot parse is logged and omitted so the caller can route it to
+    pass 3 instead of failing the whole document.
+    """
+    wanted = sorted(set(page_numbers))
+    result: dict[int, PageContent] = {}
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            for number in wanted:
+                try:
+                    result[number] = _extract_page(pdf.pages[number - 1], number)
+                except Exception as exc:  # noqa: BLE001 - pdfminer raises many unrelated types
+                    logger.warning("pdfplumber failed on page %d: %s", number, exc)
+                if on_page:
+                    on_page(number)
+    except Exception as exc:  # noqa: BLE001
+        raise PdfOpenError(f"pdfplumber cannot open {pdf_path}: {exc}") from exc
+    return result

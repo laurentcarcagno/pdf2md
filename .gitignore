@@ -1,0 +1,12 @@
+.venv/
+out/
+__pycache__/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+output/
+input/
+test_inputs/
+airbus/
+*.deb
