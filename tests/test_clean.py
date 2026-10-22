@@ -1,5 +1,5 @@
 from pdf2md.clean import find_recurring_margin_keys, mark_margins, normalize_key
-from pdf2md.models import Coordinates, Line, PageContent, Settings
+from pdf2md.models import Coordinates, Line, PageContent, Settings, Table
 
 
 def _line(page: int, text: str, top: float) -> Line:
@@ -99,3 +99,40 @@ def test_shifted_header_on_one_page_is_still_tagged() -> None:
         lines = [_line(n, "Airbus Amber", top), _line(n, "body", 400)]
         pages[n] = PageContent(page_number=n, width=595, height=842, lines=lines, tables=[])
     assert mark_margins(pages, Settings())[4].lines[0].element == "header"
+
+
+def _table(page: int, top: float, bottom: float, x0: float = 340, text: str = "Ref") -> Table:
+    return Table(
+        page_number=page,
+        coords=Coordinates(x0=x0, x1=550, top=top, bottom=bottom),
+        rows=[[text, f"X{page}"], ["Date", "07/11/2025"]],
+    )
+
+
+def test_recurring_header_table_is_tagged_but_body_tables_are_not() -> None:
+    pages = {}
+    for number in range(1, 7):
+        page = _page(number, f"Page {number}")
+        body = _table(number, 300 + number * 20, 400 + number * 20, x0=60)
+        page.tables.extend([_table(number, 40, 99, text=f"R{number}"), body])
+        pages[number] = page
+    marked = mark_margins(pages, Settings())
+    for page in marked.values():
+        assert [t.element for t in page.tables] == ["header", None]
+
+
+def test_table_seen_on_one_page_only_is_kept() -> None:
+    pages = {n: _page(n, f"Page {n}") for n in range(1, 7)}
+    pages[2].tables.append(_table(2, 40, 99))
+    assert mark_margins(pages, Settings())[2].tables[0].element is None
+
+
+def test_footer_table_is_tagged_and_removed_from_blocks() -> None:
+    from pdf2md.structure import build_blocks
+
+    pages = {n: _page(n, f"Page {n}") for n in range(1, 5)}
+    for page in pages.values():
+        page.tables.append(_table(page.page_number, 760, 820))
+    marked = mark_margins(pages, Settings())
+    blocks = build_blocks(marked[1], 10.0, [], Settings(), "pass2_pdfplumber")
+    assert [b.element for b in blocks if b.kind == "table"] == ["footer"]

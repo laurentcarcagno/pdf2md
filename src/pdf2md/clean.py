@@ -7,7 +7,7 @@ import math
 import re
 from collections import defaultdict
 
-from pdf2md.models import ElementKind, Line, PageContent, Settings
+from pdf2md.models import ElementKind, Line, PageContent, Settings, Table
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +84,58 @@ def find_recurring_margin_keys(
     return recurring
 
 
+def _table_band(table: Table, page: PageContent, settings: Settings) -> ElementKind | None:
+    """Return ``header``/``footer`` if the whole table lies in the outer search band."""
+    search = settings.margin_search_ratio * page.height
+    if table.coords.bottom <= search:
+        return "header"
+    if page.height - table.coords.top <= search:
+        return "footer"
+    return None
+
+
+def _same_box(a: Table, b: Table, tolerance: float) -> bool:
+    return all(
+        abs(x - y) <= tolerance
+        for x, y in (
+            (a.coords.x0, b.coords.x0),
+            (a.coords.x1, b.coords.x1),
+            (a.coords.top, b.coords.top),
+            (a.coords.bottom, b.coords.bottom),
+        )
+    )
+
+
+def _mark_tables(pages: dict[int, PageContent], settings: Settings) -> dict[int, list[Table]]:
+    """Tag the tables repeated at the same place of the outer bands (header/footer boxes).
+
+    Their text is ignored: a box holding "Page 3" then "Page 4" is still the same box.
+    """
+    needed = max(2, math.ceil(settings.recurrence_ratio * len(pages)))
+    banded = [
+        (number, table, band)
+        for number, page in pages.items()
+        for table in page.tables
+        if (band := _table_band(table, page, settings))
+    ]
+    tagged: dict[int, list[Table]] = {}
+    for number, page in pages.items():
+        tables = []
+        for table in page.tables:
+            band = _table_band(table, page, settings)
+            if band:
+                same = {
+                    n
+                    for n, other, other_band in banded
+                    if other_band == band and _same_box(table, other, settings.margin_tolerance)
+                }
+                if len(same) >= needed:
+                    table = table.model_copy(update={"element": band})
+            tables.append(table)
+        tagged[number] = tables
+    return tagged
+
+
 def mark_margins(pages: dict[int, PageContent], settings: Settings) -> dict[int, PageContent]:
     """Return copies of ``pages`` whose recurring header/footer lines carry ``element``.
 
@@ -93,6 +145,7 @@ def mark_margins(pages: dict[int, PageContent], settings: Settings) -> dict[int,
     """
     recurring = find_recurring_margin_keys(pages, settings)
     logger.info("detected %d recurring header/footer patterns", len(recurring))
+    tables = _mark_tables(pages, settings) if len(pages) >= 2 else {}
     marked: dict[int, PageContent] = {}
     for number, page in pages.items():
         lines = []
@@ -101,5 +154,7 @@ def mark_margins(pages: dict[int, PageContent], settings: Settings) -> dict[int,
             if found and (found[0], _key(line.text, found[1])) in recurring:
                 line = line.model_copy(update={"element": found[0]})
             lines.append(line)
-        marked[number] = page.model_copy(update={"lines": lines})
+        marked[number] = page.model_copy(
+            update={"lines": lines, "tables": tables.get(number, page.tables)}
+        )
     return marked

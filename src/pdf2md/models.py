@@ -159,6 +159,7 @@ class Table(BaseModel):
     page_number: int
     coords: Coordinates
     rows: list[list[str]]
+    element: ElementKind | None = None
 
 
 class PageContent(BaseModel):

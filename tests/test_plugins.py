@@ -396,3 +396,8 @@ def test_thales_plugin_removes_page_header_and_footer(tmp_path: Path, furniture:
 def test_thales_plugin_keeps_normal_text_mentioning_the_labels(tmp_path: Path) -> None:
     kept = "1.3 REFERENCE DOCUMENTS\n\nThe ISSUE: of the date was discussed.\n\nPage: see below"
     assert _run_tas(tmp_path, kept) == kept
+
+
+def test_thales_plugin_cleans_end_marker_from_image_alt(tmp_path: Path) -> None:
+    markdown = "![Table 1 Classes ##](assets/p0001_t01.png)\n\nTable 1 Classes ##\n\nNext."
+    assert "![Table 1 Classes](assets/p0001_t01.png)" in _run_tas(tmp_path, markdown)

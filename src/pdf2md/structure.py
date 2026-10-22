@@ -7,7 +7,16 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import cast
 
-from pdf2md.models import Block, BlockKind, Coordinates, Line, PageContent, Settings, SourcePass
+from pdf2md.models import (
+    Block,
+    BlockKind,
+    Coordinates,
+    Line,
+    PageContent,
+    Settings,
+    SourcePass,
+    Table,
+)
 from pdf2md.toc import is_entry_line
 
 _NUMBERED = re.compile(r"^(\d+(?:\.\d+)*)\.?\s+\S")
@@ -124,14 +133,15 @@ def _flush(group: list[Line], kind: str, level: int, source: SourcePass) -> Bloc
     )
 
 
-def _table_block(page_number: int, table_rows: list[list[str]], coords: Coordinates) -> Block:
+def _table_block(page_number: int, table: Table) -> Block:
     return Block(
         page_number=page_number,
         kind="table",
-        text=" | ".join(table_rows[0]),
-        rows=table_rows,
-        coords=coords,
+        text=" | ".join(table.rows[0]),
+        rows=table.rows,
+        coords=table.coords,
         source_pass="pass2_pdfplumber",
+        element=table.element,
     )
 
 
@@ -181,7 +191,7 @@ def build_blocks(
         while table_index < len(tables) and tables[table_index].coords.top <= line.coords.top:
             close()
             table = tables[table_index]
-            blocks.append(_table_block(page.page_number, table.rows, table.coords))
+            blocks.append(_table_block(page.page_number, table))
             table_index += 1
             previous = None
         kind = line_kind(index, line)
@@ -220,5 +230,5 @@ def build_blocks(
         previous = line
     close()
     for table in tables[table_index:]:
-        blocks.append(_table_block(page.page_number, table.rows, table.coords))
+        blocks.append(_table_block(page.page_number, table))
     return blocks

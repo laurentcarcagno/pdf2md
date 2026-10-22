@@ -119,6 +119,8 @@ def process(markdown: str, context: PluginContext) -> str:
         current = None
 
     dropped = 0
+    # a caption ending with the "##" marker also ends up in the alt text of its table image
+    markdown = re.sub(r"[ \t]+##\](?=\()", "]", markdown)
     for paragraph in markdown.split("\n\n"):
         if _is_page_furniture(paragraph):
             dropped += 1
