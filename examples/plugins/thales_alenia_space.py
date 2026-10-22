@@ -16,6 +16,10 @@ paragraph by paragraph, from the one starting with ``#<ID>`` to the one ending w
 
     <!-- end EUR-DCH-000010 -->
 
+The page header/footer left by the conversion is dropped too: paragraphs made only of
+``CONTROLLATO NON CLASSIFICATO THALES ALENIA SPACE ITALIA``, ``REFERENCE: <id>``, ``DATE:
+<dd/mm/yyyy>``, ``ISSUE: <n>`` and ``Page: x/y`` (in any order, with or without their values).
+
 A requirement is thus found by ``^<a id="[^"]+"></a>\*\*(\S+) (.*)\*\*$`` and ends at the
 ``<!-- end ID -->`` comment. A requirement never closed ends before the next requirement, the
 next heading or the end of the file, and is logged as a warning.
@@ -38,8 +42,23 @@ logger = logging.getLogger("pdf2md.plugins.thales_alenia_space")
 _START = re.compile(r"^#(?P<id>[A-Za-z0-9]+(?:-[A-Za-z0-9]+){2,})(?:[ \t]+(?P<rest>.*))?$", re.S)
 _HEADING = re.compile(r"^#{1,6}\s")
 _END = re.compile(r"\s*##\s*$")
+_FURNITURE_LABELS = re.compile(
+    r"CONTROLLATO\s+NON\s+CLASSIFICATO\s+THALES\s+ALENIA\s+SPACE\s+ITALIA"
+    r"|REFERENCE:|DATE:|ISSUE:|Page:\s*\d+\s*/\s*\d+",
+    re.IGNORECASE,
+)
+# What may follow the labels: the reference, the date, the issue number
+_FURNITURE_VALUES = re.compile(r"[A-Z]{2,}(?:-[A-Z0-9]+)+|\d{1,2}/\d{1,2}/\d{4}|\d{1,3}", re.I)
 _LABELS = ("Parent(s):", "Assignment:", "Verification:")
 _VERIFICATION = re.compile(r"\[[^\]]*\]")
+
+
+def _is_page_furniture(paragraph: str) -> bool:
+    """Return True for a paragraph that is only the repeated page header/footer."""
+    if not _FURNITURE_LABELS.search(paragraph):
+        return False
+    rest = _FURNITURE_VALUES.sub("", _FURNITURE_LABELS.sub("", paragraph))
+    return not rest.strip()
 
 
 def _split_attributes(rest: str) -> tuple[str, dict[str, str], str]:
@@ -99,7 +118,11 @@ def process(markdown: str, context: PluginContext) -> str:
         count += 1
         current = None
 
+    dropped = 0
     for paragraph in markdown.split("\n\n"):
+        if _is_page_furniture(paragraph):
+            dropped += 1
+            continue
         start = _START.match(paragraph.strip())
         if start:
             close("no closing ## before the next requirement")
@@ -121,5 +144,10 @@ def process(markdown: str, context: PluginContext) -> str:
         if ended:
             close()
     close("no closing ## before the end of the file")
-    logger.info("%s: %d requirement(s) marked", context.plugin_name, count)
+    logger.info(
+        "%s: %d requirement(s) marked, %d header/footer paragraph(s) removed",
+        context.plugin_name,
+        count,
+        dropped,
+    )
     return "\n\n".join(output)

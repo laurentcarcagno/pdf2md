@@ -371,3 +371,28 @@ def test_thales_plugin_title_on_its_own_line_and_no_requirement(tmp_path: Path) 
     assert text.startswith('<a id="eur-dch-000001"></a>**EUR-DCH-000001 Title line**\n\nBody line.')
     assert "# Heading\n\n#tag" in text
     assert _run_tas(tmp_path / "again", "Nothing here.\n") == "Nothing here.\n"
+
+
+@pytest.mark.parametrize(
+    "furniture",
+    [
+        "CONTROLLATO NON CLASSIFICATO THALES ALENIA SPACE ITALIA",
+        "REFERENCE: SPE-EUR-S-0009-TASI",
+        "DATE: 07/11/2025",
+        "ISSUE: 1 Page: 9/31",
+        "REFERENCE: DATE: SPE-EUR-S-0009-TASI 07/11/2025 ISSUE: 1 Page: 31/31",
+    ],
+)
+def test_thales_plugin_removes_page_header_and_footer(tmp_path: Path, furniture: str) -> None:
+    markdown = (
+        f"Before.\n\n{furniture}\n\n#EUR-DCH-000001 T Parent(s): none Assignment: "
+        f"Verification: [R] Body.\n\n{furniture}\n\nShall stay. ##\n\nAfter."
+    )
+    text = _run_tas(tmp_path, markdown)
+    assert furniture not in text
+    assert "Body.\n\nShall stay.\n\n<!-- end EUR-DCH-000001 -->\n\nAfter." in text
+
+
+def test_thales_plugin_keeps_normal_text_mentioning_the_labels(tmp_path: Path) -> None:
+    kept = "1.3 REFERENCE DOCUMENTS\n\nThe ISSUE: of the date was discussed.\n\nPage: see below"
+    assert _run_tas(tmp_path, kept) == kept
