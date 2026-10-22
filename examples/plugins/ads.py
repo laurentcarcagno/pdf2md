@@ -1,4 +1,4 @@
-"""Plugin ADS: turn the small text-strip images of requirements into a marked line.
+r"""Plugin ADS: turn the small text-strip images of requirements into a marked line.
 
 pdf2md extracts text printed as a thin image on the same line as a requirement title and
 gives it the OCR text as alt text. This plugin replaces such an image, alone in its

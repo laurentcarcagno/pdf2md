@@ -79,12 +79,27 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--no-ocr", action="store_true", help="never run OCR")
     parser.add_argument("--no-images", action="store_true", help="do not extract figures")
     parser.add_argument("--image-dpi", type=int, default=200, help="figure resolution (200)")
+    parser.add_argument(
+        "--tables-as-images",
+        nargs="?",
+        const=1,
+        type=int,
+        metavar="MIN_ROWS",
+        help="render tables (of at least MIN_ROWS rows, default 1) as page images",
+    )
+    parser.add_argument(
+        "--tables-keep-text",
+        action="store_true",
+        help="with --tables-as-images, keep the table text in a <details> block",
+    )
     parser.add_argument("--no-json", action="store_true", help="do not write the JSON mapping")
     parser.add_argument("--no-progress", action="store_true", help="hide the progress bar")
     parser.add_argument("-v", "--verbose", action="store_true")
     add_plugin_arguments(parser)
     args = parser.parse_args(argv)
 
+    if args.tables_as_images is not None and args.no_images:
+        parser.error("--tables-as-images needs the images folder: remove --no-images")
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -107,6 +122,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         ocr_dpi=args.ocr_dpi,
         ocr_enabled=not args.no_ocr,
         image_dpi=args.image_dpi,
+        tables_as_images=args.tables_as_images,
+        tables_keep_text=args.tables_keep_text,
     )
     failures = 0
     with logging_redirect_tqdm():

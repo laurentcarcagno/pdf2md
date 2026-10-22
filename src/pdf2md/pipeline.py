@@ -33,6 +33,7 @@ from pdf2md.pages import resolve_pages
 from pdf2md.progress import PageProgress
 from pdf2md.render import build_mapping, render_markdown, write_mapping
 from pdf2md.structure import body_font_size, build_blocks, heading_sizes
+from pdf2md.table_images import tables_to_images
 from pdf2md.text import fix_blocks
 from pdf2md.toc import mark_contents
 
@@ -216,11 +217,13 @@ def convert_pdf(
             blocks_by_page.update(run_chain(ctx, pages, chain))
         if images_dir is not None:
             blocks_by_page = _add_images(doc, classification, blocks_by_page, images_dir, settings)
+        ordered = [b for number in sorted(blocks_by_page) for b in blocks_by_page[number]]
+        tagged = fix_blocks(mark_contents(ordered))
+        if images_dir is not None and settings.tables_as_images is not None:
+            tagged = tables_to_images(doc, tagged, images_dir, settings)
     finally:
         doc.close()
 
-    ordered = [b for number in sorted(blocks_by_page) for b in blocks_by_page[number]]
-    tagged = fix_blocks(mark_contents(ordered))
     blocks = apply_keep(tagged, settings.keep)
     _log_summary(pdf_path, classification, tagged, blocks, time.perf_counter() - started)
     return PdfConversionResult(

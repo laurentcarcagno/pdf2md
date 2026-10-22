@@ -90,6 +90,8 @@ Docling and Marker only run on pages the geometric pass cannot handle.
 | `--ocr-lang`, `--ocr-dpi`, `--no-ocr` | OCR languages (default `fra+eng`), resolution (300), disable |
 | `--anchors` | prefix each block with `<!-- p:ID page:N -->` |
 | `--no-images` | do not extract figures (by default they are saved to `<output>/<pdf name>/assets/` and referenced from the Markdown) |
+| `--tables-as-images [MIN_ROWS]` | render each table (of at least MIN_ROWS rows, default 1) as a PNG of its area in the page (`assets/pNNNN_tNN.png`), alt text = the "Table …" caption when there is one; the JSON keeps the coordinates. Tables without coordinates or tagged as TOC/LOF/LOT stay text; needs images (incompatible with `--no-images`) |
+| `--tables-keep-text` | with `--tables-as-images`, keep the table text as Markdown in a `<details>` block under the image |
 | `--image-dpi N` | resolution of the saved PNG figures (default 200) |
 | `--no-json` | write only the Markdown, no `.json` mapping |
 | `--no-progress` | hide the progress bar (it is also hidden automatically when stderr is not a terminal) |

@@ -41,7 +41,11 @@ def render_block(block: Block) -> str:
     """Return the Markdown of one block."""
     if block.kind == "image" and block.image_path:
         alt = re.sub(r"[\[\]\n]", " ", block.text).strip()
-        return f"![{alt}]({block.image_path})"
+        image = f"![{alt}]({block.image_path})"
+        if block.rows:  # table rendered as a picture whose text is kept
+            table = render_table(block.rows)
+            return f"{image}\n\n<details><summary>Table text</summary>\n\n{table}\n\n</details>"
+        return image
     if block.kind == "heading":
         return f"{'#' * max(block.level, 1)} {block.text}"
     if block.kind == "code":

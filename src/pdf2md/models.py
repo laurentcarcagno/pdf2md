@@ -61,6 +61,10 @@ class Settings(BaseModel):
     # Images
     image_dpi: int = Field(200, description="Resolution of the extracted PNG figures")
     image_min_area: float = Field(2500.0, description="Smaller images (pt^2) are decoration")
+    tables_as_images: int | None = Field(
+        None, description="Render tables of at least this many rows as images (None: never)"
+    )
+    tables_keep_text: bool = Field(False, description="Keep the text of tables rendered as images")
 
     # Routing and OCR
     engine: Engine = Field("auto", description="Force one engine instead of the fallback chain")

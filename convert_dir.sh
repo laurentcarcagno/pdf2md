@@ -32,6 +32,8 @@ Options:
       --anchors            add <!-- p:ID page:N --> markers to the Markdown
       --no-images          do not extract figures (default: saved to <output>/<pdf>/assets/)
       --image-dpi N        [PDF] figure resolution (default: 200)
+      --tables-as-images [N]  [PDF] render tables (of at least N rows, default 1) as images
+      --tables-keep-text   [PDF] with --tables-as-images, keep the table text under the image
       --no-json            do not write the JSON mapping, only the Markdown
       --no-progress        hide the progress bar
       --post-process NAME  apply the plugin NAME to each produced Markdown file; repeat the
@@ -82,7 +84,10 @@ while [[ $# -gt 0 ]]; do
         --ocr-lang) [[ $# -ge 2 ]] || die "$1 needs a value"; pdf_args+=(--ocr-lang "$2"); shift 2 ;;
         --image-dpi) [[ $# -ge 2 ]] || die "$1 needs a value"; pdf_args+=(--image-dpi "$2"); shift 2 ;;
         --ocr-dpi) [[ $# -ge 2 ]] || die "$1 needs a value"; pdf_args+=(--ocr-dpi "$2"); shift 2 ;;
-        --no-ocr) pdf_args+=("$1"); shift ;;
+        --no-ocr|--tables-keep-text) pdf_args+=("$1"); shift ;;
+        --tables-as-images)
+            if [[ $# -ge 2 && "$2" =~ ^[0-9]+$ ]]; then pdf_args+=("$1" "$2"); shift 2
+            else pdf_args+=("$1"); shift; fi ;;
         --anchors|--no-json|--no-images|--no-progress) common_args+=("$1"); shift ;;
         --post-process) [[ $# -ge 2 ]] || die "$1 needs a value"; post_names+=("$2"); common_args+=(--post-process "$2"); shift 2 ;;
         --plugin-dir) [[ $# -ge 2 ]] || die "$1 needs a value"; common_args+=(--plugin-dir "$2"); shift 2 ;;
