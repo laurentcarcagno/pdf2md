@@ -315,3 +315,59 @@ def test_ads_plugin_turns_title_strips_into_text(tmp_path: Path) -> None:
     assert (assets / "figure.png").exists()
     assert (assets / "generic.png").exists()
     assert (assets / "shared.png").exists()
+
+
+REQUIREMENTS = (
+    "3.1 Wiring\n\n"
+    "#EUR-DCH-000010 Interconnection wiring Parent(s): none Assignment: Verification: [R, I] "
+    "The DC harness shall be manufactured as per [AD09]. ##\n\n"
+    "#EUR-DCH-000020 Harness continuity Parent(s): EUR-EMC-REQ-000460 Assignment: Verification: "
+    "[T] Continuity shall be measured.\n\nSecond paragraph.\n\n##\n\n"
+    "Plain paragraph kept as is.\n\n"
+    "#EUR-DCH-000030 Unclosed Parent(s): none Assignment: Verification: [R] Never closed.\n\n"
+    "### END OF DOCUMENT\n"
+)
+
+
+def _run_tas(tmp_path: Path, markdown: str) -> str:
+    examples = Path(__file__).parent.parent / "examples" / "plugins"
+    plugin_dir = tmp_path / "plugins"
+    register_plugin("Thales Alénia Space", examples / "thales_alenia_space.py", plugin_dir)
+    md, js = _output(tmp_path)
+    md.write_text(markdown, encoding="utf-8")
+    new_md, _ = post_process_outputs(
+        [load_plugin("Thales Alénia Space", plugin_dir)], tmp_path / "d.pdf", md, js, md.parent
+    )
+    return new_md.read_text(encoding="utf-8")
+
+
+def test_thales_plugin_marks_requirements(tmp_path: Path) -> None:
+    text = _run_tas(tmp_path, REQUIREMENTS)
+    first = (
+        '<a id="eur-dch-000010"></a>**EUR-DCH-000010 Interconnection wiring**\n\n'
+        "- Parent(s): none\n- Assignment:\n- Verification: [R, I]\n\n"
+        "The DC harness shall be manufactured as per [AD09].\n\n"
+        "<!-- end EUR-DCH-000010 -->"
+    )
+    assert first in text
+    assert "- Parent(s): EUR-EMC-REQ-000460" in text
+    assert (
+        "Continuity shall be measured.\n\nSecond paragraph.\n\n<!-- end EUR-DCH-000020 -->" in text
+    )
+    assert "\n\nPlain paragraph kept as is.\n\n" in text
+    assert "##\n" not in text.replace("### END", "")
+
+
+def test_thales_plugin_unclosed_requirement_stops_at_heading(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    text = _run_tas(tmp_path, REQUIREMENTS)
+    assert "Never closed.\n\n<!-- end EUR-DCH-000030 -->\n\n### END OF DOCUMENT" in text
+    assert "no closing ##" in caplog.text
+
+
+def test_thales_plugin_title_on_its_own_line_and_no_requirement(tmp_path: Path) -> None:
+    text = _run_tas(tmp_path, "#EUR-DCH-000001 Title line\nBody line. ##\n\n# Heading\n\n#tag\n")
+    assert text.startswith('<a id="eur-dch-000001"></a>**EUR-DCH-000001 Title line**\n\nBody line.')
+    assert "# Heading\n\n#tag" in text
+    assert _run_tas(tmp_path / "again", "Nothing here.\n") == "Nothing here.\n"

@@ -181,7 +181,8 @@ def process(markdown: str, context: PluginContext) -> str | PluginResult:
 
 `context` gives `plugin_name`, `source` (the PDF/Word file), `md_path`, `json_path` (None with
 `--no-json`) and `assets_dir`. Examples: `examples/plugins/remove_notes.py`,
-`examples/plugins/rename_with_prefix.py` and `examples/plugins/ads.py` (replaces the thin
+`examples/plugins/rename_with_prefix.py` and `examples/plugins/thales_alenia_space.py` (marks the `#ID Title … ##` requirements of Thales
+Alénia Space documents) and `examples/plugins/ads.py` (replaces the thin
 requirement-strip images by their alt text in bold behind an anchor and deletes the image files).
 
 Behaviour worth knowing:
