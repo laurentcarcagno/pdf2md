@@ -95,7 +95,7 @@ def convert_docx(
         if progress:
             progress.tick(counter["done"])
 
-    content = read_docx(document, tick)
+    content = read_docx(document, tick, settings.tables_html)
     tagged = fix_blocks(mark_contents(content.blocks))
     selected = _select_pages(tagged, settings, content.page_count)
     kept = apply_keep(selected, settings.keep)

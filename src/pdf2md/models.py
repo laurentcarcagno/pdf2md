@@ -64,6 +64,7 @@ class Settings(BaseModel):
     tables_as_images: int | None = Field(
         None, description="Render tables of at least this many rows as images (None: never)"
     )
+    tables_html: bool = Field(False, description="Insert tables as HTML (colours, text styles)")
     tables_keep_text: bool = Field(False, description="Keep the text of tables rendered as images")
 
     # Routing and OCR
@@ -160,6 +161,7 @@ class Table(BaseModel):
     coords: Coordinates
     rows: list[list[str]]
     element: ElementKind | None = None
+    html: str | None = None  # styled HTML version, when requested
 
 
 class PageContent(BaseModel):
@@ -187,6 +189,7 @@ class Block(BaseModel):
     source_pass: SourcePass
     element: ElementKind | None = None
     image_path: str | None = None
+    html: str | None = None  # tables only: HTML with cell colours and text styles
 
 
 class MappingEntry(BaseModel):

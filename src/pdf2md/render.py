@@ -54,6 +54,8 @@ def render_block(block: Block) -> str:
         return "\n".join(f"- {strip_leaders(line)}" for line in block.text.splitlines())
     if block.kind == "list":
         return "\n".join(_list_line(line) for line in block.text.splitlines())
+    if block.kind == "table" and block.html:
+        return block.html
     if block.kind == "table" and block.rows:
         return render_table(block.rows)
     return block.text

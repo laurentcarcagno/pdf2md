@@ -14,6 +14,7 @@ from typing import Any
 from lxml import etree
 
 from pdf2md.docx_numbering import Numbering, parse_numbering
+from pdf2md.docx_table_html import StyleMap, table_element_to_html
 from pdf2md.models import Block, BlockKind, ElementKind
 
 logger = logging.getLogger(__name__)
@@ -82,6 +83,8 @@ class _State:
     field_stack: list[ElementKind | None] = field(default_factory=list)
     open_list: list[int] = field(default_factory=list)  # [base ilvl] of the list being built
     code_open: bool = False
+    tables_html: bool = False
+    styles: StyleMap | None = None
 
 
 def _text_of(element: Any) -> str:
@@ -266,6 +269,7 @@ def _block(
     level: int = 0,
     element: ElementKind | None = None,
     rows: list[list[str]] | None = None,
+    html: str | None = None,
 ) -> Block:
     return Block(
         page_number=state.page,
@@ -275,6 +279,7 @@ def _block(
         rows=rows or [],
         element=element,
         source_pass="docx",
+        html=html,
     )
 
 
@@ -406,7 +411,10 @@ def _table(state: _State, table_el: Any) -> None:
         for row in rows:
             state.blocks.append(_block(state, "paragraph", row[0]))
     else:
-        state.blocks.append(_block(state, "table", " | ".join(rows[0]), rows=rows))
+        html = None
+        if state.tables_html and state.styles is not None:
+            html = table_element_to_html(table_el, state.styles)
+        state.blocks.append(_block(state, "table", " | ".join(rows[0]), rows=rows, html=html))
     state.page += breaks_inside
 
 
@@ -487,12 +495,15 @@ def _header_footer_blocks(document: Any, last_page: int) -> tuple[list[Block], l
     return headers, footers
 
 
-def read_docx(document: Any, tick: Callable[[], None] | None = None) -> DocxContent:
+def read_docx(
+    document: Any, tick: Callable[[], None] | None = None, tables_html: bool = False
+) -> DocxContent:
     """Convert an opened ``python-docx`` document to blocks, in reading order.
 
     Page numbers are estimates: Word does not store pagination, so they come from the
     ``lastRenderedPageBreak`` marks of the last save (or, if absent, from explicit page and
-    section breaks).
+    section breaks). With ``tables_html`` tables also carry their HTML (shading, spans and run
+    formatting; formatting that only comes from a table style is not resolved).
     """
     body = document.element.body
     try:
@@ -512,6 +523,8 @@ def read_docx(document: Any, tick: Callable[[], None] | None = None) -> DocxCont
         numbering=numbering,
         rendered_mode=bool(_X_RENDERED_BREAKS(body)),
         decorations={h for h, n in hashes.items() if n >= _MIN_DECORATION_REPEATS},
+        tables_html=tables_html,
+        styles=StyleMap(document) if tables_html else None,
     )
     _walk_body(state, body, None, tick or (lambda: None))
     headers, footers = _header_footer_blocks(document, state.page)

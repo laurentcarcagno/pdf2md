@@ -88,6 +88,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="render tables (of at least MIN_ROWS rows, default 1) as page images",
     )
     parser.add_argument(
+        "--tables-html",
+        action="store_true",
+        help="insert tables as HTML keeping cell colours and text styles (bold, italic, ...)",
+    )
+    parser.add_argument(
         "--tables-keep-text",
         action="store_true",
         help="with --tables-as-images, keep the table text in a <details> block",
@@ -98,6 +103,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     add_plugin_arguments(parser)
     args = parser.parse_args(argv)
 
+    if args.tables_html and args.tables_as_images is not None:
+        parser.error("--tables-html and --tables-as-images are mutually exclusive")
     if args.tables_as_images is not None and args.no_images:
         parser.error("--tables-as-images needs the images folder: remove --no-images")
     logging.basicConfig(
@@ -124,6 +131,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         image_dpi=args.image_dpi,
         tables_as_images=args.tables_as_images,
         tables_keep_text=args.tables_keep_text,
+        tables_html=args.tables_html,
     )
     failures = 0
     with logging_redirect_tqdm():

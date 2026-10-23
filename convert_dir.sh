@@ -33,6 +33,7 @@ Options:
       --no-images          do not extract figures (default: saved to <output>/<pdf>/assets/)
       --image-dpi N        [PDF] figure resolution (default: 200)
       --tables-as-images [N]  [PDF] render tables (of at least N rows, default 1) as images
+      --tables-html        insert tables as HTML (cell colours, bold/italic/underline/strike text)
       --tables-keep-text   [PDF] with --tables-as-images, keep the table text under the image
       --no-json            do not write the JSON mapping, only the Markdown
       --no-progress        hide the progress bar
@@ -88,7 +89,7 @@ while [[ $# -gt 0 ]]; do
         --tables-as-images)
             if [[ $# -ge 2 && "$2" =~ ^[0-9]+$ ]]; then pdf_args+=("$1" "$2"); shift 2
             else pdf_args+=("$1"); shift; fi ;;
-        --anchors|--no-json|--no-images|--no-progress) common_args+=("$1"); shift ;;
+        --anchors|--no-json|--no-images|--no-progress|--tables-html) common_args+=("$1"); shift ;;
         --post-process) [[ $# -ge 2 ]] || die "$1 needs a value"; post_names+=("$2"); common_args+=(--post-process "$2"); shift 2 ;;
         --plugin-dir) [[ $# -ge 2 ]] || die "$1 needs a value"; common_args+=(--plugin-dir "$2"); shift 2 ;;
         --register-plugin)

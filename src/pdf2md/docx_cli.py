@@ -49,6 +49,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="estimated pages to keep, e.g. 10- , -10 , 15-18 , 1-5,10-20,30-",
     )
     parser.add_argument("--no-images", action="store_true", help="do not extract images")
+    parser.add_argument(
+        "--tables-html",
+        action="store_true",
+        help="insert tables as HTML keeping cell colours and text styles (bold, italic, ...)",
+    )
     parser.add_argument("--no-json", action="store_true", help="do not write the JSON mapping")
     parser.add_argument("--no-progress", action="store_true", help="hide the progress bar")
     parser.add_argument("-v", "--verbose", action="store_true")
@@ -69,7 +74,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     except PluginError as exc:
         logger.error("%s", exc)
         return 2
-    settings = Settings(keep=keep_set(args.keep), pages=args.pages)
+    settings = Settings(keep=keep_set(args.keep), pages=args.pages, tables_html=args.tables_html)
     failures = 0
     with logging_redirect_tqdm():
         for index, path in enumerate(args.docs, start=1):

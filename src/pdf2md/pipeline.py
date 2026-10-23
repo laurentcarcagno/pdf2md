@@ -92,7 +92,9 @@ def _blocks_from_pages(
 
 
 def _step_geometric(ctx: _Context, pages: list[int]) -> PageBlocks:
-    return _blocks_from_pages(extract_pages(ctx.pdf_path, pages, ctx.tick), ctx.settings)
+    return _blocks_from_pages(
+        extract_pages(ctx.pdf_path, pages, ctx.tick, ctx.settings.tables_html), ctx.settings
+    )
 
 
 def _step_ocr(ctx: _Context, pages: list[int]) -> PageBlocks:

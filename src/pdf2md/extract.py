@@ -9,9 +9,11 @@ from pathlib import Path
 from typing import Any
 
 import pdfplumber
+import pymupdf
 
 from pdf2md.errors import PdfOpenError
 from pdf2md.models import Coordinates, Line, PageContent, Table
+from pdf2md.pdf_table_html import PageDrawings, table_to_html
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +57,23 @@ def _clean_cell(cell: object) -> str:
     return " ".join(str(cell or "").split())
 
 
-def _extract_page(page: Any, page_number: int) -> PageContent:
+Styler = tuple[pymupdf.Page, PageDrawings]
+
+
+def _table_html(found: Any, styler: Styler | None) -> str | None:
+    """Return the styled HTML of a pdfplumber table, None when not requested or on failure."""
+    if styler is None:
+        return None
+    page, drawings = styler
+    boxes = [(c[0], c[1], c[2], c[3]) for row in found.rows for c in row.cells if c]
+    try:
+        return table_to_html(page, boxes, drawings)
+    except (RuntimeError, ValueError, KeyError) as exc:
+        logger.warning("page %d: cannot build the HTML table: %s", page.number + 1, exc)
+        return None
+
+
+def _extract_page(page: Any, page_number: int, styler: Styler | None = None) -> PageContent:
     tables: list[Table] = []
     for found in page.find_tables():
         rows = [[_clean_cell(c) for c in row] for row in found.extract()]
@@ -67,6 +85,7 @@ def _extract_page(page: Any, page_number: int) -> PageContent:
                     page_number=page_number,
                     coords=Coordinates(x0=x0, x1=x1, top=top, bottom=bottom),
                     rows=rows,
+                    html=_table_html(found, styler),
                 )
             )
     lines: list[Line] = []
@@ -84,24 +103,36 @@ def _extract_page(page: Any, page_number: int) -> PageContent:
 
 
 def extract_pages(
-    pdf_path: Path, page_numbers: Iterable[int], on_page: Callable[[int], None] | None = None
+    pdf_path: Path,
+    page_numbers: Iterable[int],
+    on_page: Callable[[int], None] | None = None,
+    tables_html: bool = False,
 ) -> dict[int, PageContent]:
     """Extract lines and tables of the requested 1-based pages.
 
     A page that pdfplumber cannot parse is logged and omitted so the caller can route it to
-    pass 3 instead of failing the whole document.
+    pass 3 instead of failing the whole document. With ``tables_html`` each table also carries
+    its HTML (cell fills and text styles read with PyMuPDF).
     """
     wanted = sorted(set(page_numbers))
     result: dict[int, PageContent] = {}
+    styled_doc = pymupdf.open(pdf_path) if tables_html else None
     try:
         with pdfplumber.open(pdf_path) as pdf:
             for number in wanted:
                 try:
-                    result[number] = _extract_page(pdf.pages[number - 1], number)
+                    styler = None
+                    if styled_doc is not None:
+                        page = styled_doc[number - 1]
+                        styler = (page, PageDrawings(page))
+                    result[number] = _extract_page(pdf.pages[number - 1], number, styler)
                 except Exception as exc:  # noqa: BLE001 - pdfminer raises many unrelated types
                     logger.warning("pdfplumber failed on page %d: %s", number, exc)
                 if on_page:
                     on_page(number)
     except Exception as exc:  # noqa: BLE001
         raise PdfOpenError(f"pdfplumber cannot open {pdf_path}: {exc}") from exc
+    finally:
+        if styled_doc is not None:
+            styled_doc.close()
     return result
