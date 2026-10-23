@@ -22,6 +22,7 @@ logging.getLogger("pdfminer").setLevel(logging.ERROR)
 
 _MONO_MARKERS = ("mono", "courier", "consolas")
 _LABEL = re.compile(r"^[A-Z][A-Z0-9_]*:")
+_MIN_COLUMNS = 2
 
 
 def _line_from_plumber(raw: dict[str, Any], page_number: int) -> Line | None:
@@ -60,7 +61,7 @@ def _clean_cell(cell: object) -> str:
 Styler = tuple[pymupdf.Page, PageDrawings]
 
 
-def _table_html(found: Any, styler: Styler | None) -> str | None:
+def _table_html(found: Any, styler: Styler | None) -> tuple[str, list[float]] | None:
     """Return the styled HTML of a pdfplumber table, None when not requested or on failure."""
     if styler is None:
         return None
@@ -73,19 +74,51 @@ def _table_html(found: Any, styler: Styler | None) -> str | None:
         return None
 
 
+_MAX_BORDER_THICKNESS = 2.0  # pt: thinner filled rectangles are drawn borders, not backgrounds
+
+
+def _not_background(obj: dict[str, Any]) -> bool:
+    """Keep everything but filled rectangles that are too thick to be a drawn border."""
+    if obj["object_type"] != "rect":
+        return True
+    thickness = min(obj["x1"] - obj["x0"], obj["bottom"] - obj["top"])
+    return bool(thickness <= _MAX_BORDER_THICKNESS)
+
+
+def _wide_tables(tables: list[Any]) -> int:
+    return sum(1 for t in tables if t.rows and len(t.rows[0].cells) >= _MIN_COLUMNS)
+
+
+def _find_tables(page: Any, clean_grid: bool) -> list[Any]:
+    """Find the tables of a page, optionally ignoring the background fills of the cells.
+
+    Some producers (Word) shade a cell with one rectangle per text line; pdfplumber then takes
+    their edges for cell borders and cuts a cell into one piece per line. Without the fills only
+    the real borders remain. The result is used when it finds at least as many tables.
+    """
+    found = list(page.find_tables())
+    if clean_grid:
+        cleaned = list(page.filter(_not_background).find_tables())
+        if _wide_tables(cleaned) >= _wide_tables(found):
+            return cleaned
+    return found
+
+
 def _extract_page(page: Any, page_number: int, styler: Styler | None = None) -> PageContent:
     tables: list[Table] = []
-    for found in page.find_tables():
+    for found in _find_tables(page, clean_grid=styler is not None):
         rows = [[_clean_cell(c) for c in row] for row in found.extract()]
         rows = [row for row in rows if any(row)]
         if len(rows) >= 1 and rows and len(rows[0]) >= 2:
             x0, top, x1, bottom = found.bbox
+            styled = _table_html(found, styler)
             tables.append(
                 Table(
                     page_number=page_number,
                     coords=Coordinates(x0=x0, x1=x1, top=top, bottom=bottom),
                     rows=rows,
-                    html=_table_html(found, styler),
+                    html=styled[0] if styled else None,
+                    grid=styled[1] if styled else [],
                 )
             )
     lines: list[Line] = []

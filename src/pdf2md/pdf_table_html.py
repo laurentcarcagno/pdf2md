@@ -86,20 +86,30 @@ class PageDrawings:
                     )
 
     def fill_of(self, box: Box) -> str | None:
-        """Return the colour of the smallest fill covering the cell centre and half its area."""
+        """Return the background colour of a cell.
+
+        Either the smallest fill covering the cell centre and half of its area, or, when the
+        shading is drawn piece by piece (one rectangle per text line), the colour whose pieces
+        cover at least half of the cell.
+        """
         cx, cy = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
         cell_area = max((box[2] - box[0]) * (box[3] - box[1]), 1.0)
         best: tuple[float, str] | None = None
+        covered: dict[str, float] = {}
         for fill in self.fills:
             x0, top, x1, bottom = fill.box
-            if not (x0 <= cx <= x1 and top <= cy <= bottom):
-                continue
+            overlap = max(min(x1, box[2]) - max(x0, box[0]), 0.0) * max(
+                min(bottom, box[3]) - max(top, box[1]), 0.0
+            )
+            covered[fill.color] = covered.get(fill.color, 0.0) + overlap
             area = (x1 - x0) * (bottom - top)
-            if area < _MIN_FILL_COVERAGE * cell_area:
-                continue
-            if best is None or area <= best[0]:
-                best = (area, fill.color)  # later drawings are on top: keep the last smallest
-        return best[1] if best else None
+            if x0 <= cx <= x1 and top <= cy <= bottom and area >= _MIN_FILL_COVERAGE * cell_area:
+                if best is None or area <= best[0]:
+                    best = (area, fill.color)  # later drawings are on top: keep the last smallest
+        if best:
+            return best[1]
+        color, total = max(covered.items(), key=lambda item: item[1], default=("", 0.0))
+        return color if total >= _MIN_FILL_COVERAGE * cell_area else None
 
     def _crosses(self, span_box: Box, y_low: float, y_high: float, cell: Box) -> bool:
         """Return True if a stroke covers the span horizontally between two heights.
@@ -193,8 +203,14 @@ def _index(lines: list[float], value: float) -> int:
     return min(range(len(lines)), key=lambda i: abs(lines[i] - value))
 
 
-def table_to_html(page: pymupdf.Page, cell_boxes: list[Box], drawings: PageDrawings) -> str | None:
-    """Return the HTML of the table made of ``cell_boxes`` (None if there is no cell)."""
+def table_to_html(
+    page: pymupdf.Page, cell_boxes: list[Box], drawings: PageDrawings
+) -> tuple[str, list[float]] | None:
+    """Return ``(html, column_lines)`` of the table made of ``cell_boxes``.
+
+    ``column_lines`` are the x positions of the column borders, used to recognise the
+    continuation of a table on the next page. None if there is no cell.
+    """
     if not cell_boxes:
         return None
     xs = _grid_lines([v for box in cell_boxes for v in (box[0], box[2])])
@@ -225,4 +241,4 @@ def table_to_html(page: pymupdf.Page, cell_boxes: list[Box], drawings: PageDrawi
             elif (row, col) not in covered:
                 cells.append(HtmlCell())
         rows.append(cells)
-    return render_table_html(rows)
+    return render_table_html(rows), xs

@@ -65,6 +65,7 @@ class Settings(BaseModel):
         None, description="Render tables of at least this many rows as images (None: never)"
     )
     tables_html: bool = Field(False, description="Insert tables as HTML (colours, text styles)")
+    table_merge_tolerance: float = Field(3.0, description="Max drift (pt) of the column borders")
     tables_keep_text: bool = Field(False, description="Keep the text of tables rendered as images")
 
     # Routing and OCR
@@ -162,6 +163,7 @@ class Table(BaseModel):
     rows: list[list[str]]
     element: ElementKind | None = None
     html: str | None = None  # styled HTML version, when requested
+    grid: list[float] = Field(default_factory=list)  # x of the column borders (HTML tables)
 
 
 class PageContent(BaseModel):
@@ -190,6 +192,7 @@ class Block(BaseModel):
     element: ElementKind | None = None
     image_path: str | None = None
     html: str | None = None  # tables only: HTML with cell colours and text styles
+    grid: list[float] = Field(default_factory=list)  # tables only: x of the column borders
 
 
 class MappingEntry(BaseModel):

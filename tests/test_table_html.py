@@ -140,3 +140,34 @@ def test_docx_table_keeps_shading_spans_and_run_formats(styled_docx: Path, tmp_p
     assert '<td colspan="2">wide</td>' in text
     assert '<td rowspan="2">tall</td>' in text
     assert text.count("<tr>") == 3 and "| Head |" not in text
+
+
+@pytest.fixture()
+def shaded_lines_pdf(tmp_path: Path) -> Path:
+    """Borders drawn as thin filled rectangles; the shading is one rectangle per text line."""
+    doc = pymupdf.open()
+    page = doc.new_page()
+    beige = (0.93, 0.92, 0.88)
+    for y in (100, 160, 200):  # horizontal borders
+        page.draw_rect(pymupdf.Rect(60, y, 360, y + 0.5), color=None, fill=(0, 0, 0))
+    for x in (60, 160, 360):  # vertical borders
+        page.draw_rect(pymupdf.Rect(x, 100, x + 0.5, 200.5), color=None, fill=(0, 0, 0))
+    for line, y in enumerate((106, 122, 138)):  # first cell: three lines, three shaded boxes
+        page.draw_rect(pymupdf.Rect(66, y, 154, y + 15), color=None, fill=beige)
+        page.insert_text((68, y + 11), f"first cell line {line + 1}", fontsize=8)
+    page.draw_rect(pymupdf.Rect(166, 106, 354, 154), color=None, fill=beige)
+    page.insert_text((170, 120), "right", fontsize=10)
+    page.insert_text((68, 180), "A", fontsize=10)
+    page.insert_text((168, 180), "B", fontsize=10)
+    path = tmp_path / "shaded.pdf"
+    doc.save(path)
+    return path
+
+
+def test_cell_shaded_line_by_line_stays_one_cell(shaded_lines_pdf: Path, tmp_path: Path) -> None:
+    text = _convert_pdf(shaded_lines_pdf, tmp_path, "--tables-html")
+    assert text.count("<tr>") == 2
+    first_row = text.split("<tr>")[1]
+    assert first_row.count("<td") == 2
+    assert "first cell line 1<br>first cell line 2<br>first cell line 3" in first_row
+    assert first_row.count("background-color:#edebe0") == 2

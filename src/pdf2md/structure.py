@@ -143,6 +143,7 @@ def _table_block(page_number: int, table: Table) -> Block:
         source_pass="pass2_pdfplumber",
         element=table.element,
         html=table.html,
+        grid=table.grid,
     )
 
 
