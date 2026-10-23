@@ -14,6 +14,7 @@ import pymupdf
 from pdf2md.errors import PdfOpenError
 from pdf2md.models import Coordinates, Line, PageContent, Table
 from pdf2md.pdf_table_html import PageDrawings, table_to_html
+from pdf2md.text import fix_text
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ _MIN_COLUMNS = 2
 
 
 def _line_from_plumber(raw: dict[str, Any], page_number: int) -> Line | None:
-    text = str(raw["text"]).strip()
+    text = fix_text(str(raw["text"])).strip()
     chars = raw.get("chars") or []
     if not text or not chars:
         return None

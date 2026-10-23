@@ -1,3 +1,4 @@
+from pdf2md.extract import _line_from_plumber
 from pdf2md.models import Coordinates, Line, PageContent, Settings
 from pdf2md.structure import build_blocks, join_lines
 
@@ -101,3 +102,16 @@ def test_requirement_letters_notes_and_nested_lists_are_separate() -> None:
         "1. one;\n2. two, consisting of:\n   - (a) sub one, and more sub one;\n"
         "   - (b) sub two;\n3. three."
     )
+
+
+def test_symbol_font_bullets_make_a_list() -> None:
+    raw = {"x0": 50, "x1": 300, "top": 100, "bottom": 111}
+    chars = [{"size": 11, "fontname": "ArialMT"}]
+    lines = [
+        _line_from_plumber({**raw, "text": f"{chr(0xF0B7)} Electrical design", "chars": chars}, 1),
+        _line_from_plumber({**raw, "text": f"{chr(0xF0B7)} Mechanical design", "chars": chars}, 1),
+    ]
+    page = PageContent(page_number=1, width=595, height=842, lines=lines, tables=[])
+    blocks = build_blocks(page, body_size=11, sizes=[], settings=Settings())
+    assert [b.kind for b in blocks] == ["list"]
+    assert blocks[0].text == "• Electrical design\n• Mechanical design"
