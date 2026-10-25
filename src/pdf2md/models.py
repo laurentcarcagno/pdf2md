@@ -34,24 +34,50 @@ class Settings(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     # Pass 1 - classification
-    scanned_char_threshold: int = Field(100, description="Below this many chars + images => scan")
-    scanned_image_ratio: float = Field(0.5, description="Image area / page area for a scan")
-    column_min_words: int = Field(80, description="Minimum words to look for a column gutter")
-    column_gutter_ratio: float = Field(0.03, description="Gutter width / page width")
-    column_side_ratio: float = Field(0.25, description="Minimum share of words on each side")
-    complex_page_ratio: float = Field(0.5, description="Share of non-native pages => full fallback")
+    scanned_char_threshold: int = Field(
+        100, ge=0, le=100000, description="Below this many chars + images => scan"
+    )
+    scanned_image_ratio: float = Field(
+        0.5, ge=0, le=1, description="Image area / page area for a scan"
+    )
+    column_min_words: int = Field(
+        80, ge=1, le=10000, description="Minimum words to look for a column gutter"
+    )
+    column_gutter_ratio: float = Field(0.03, ge=0, le=0.5, description="Gutter width / page width")
+    column_side_ratio: float = Field(
+        0.25, ge=0, le=0.5, description="Minimum share of words on each side"
+    )
+    complex_page_ratio: float = Field(
+        0.5, ge=0, le=1, description="Share of non-native pages => full fallback"
+    )
 
     # Pass 2 - cleaning
-    margin_band_ratio: float = Field(0.12, description="Image logo band / page height")
-    margin_search_ratio: float = Field(0.25, description="Outer band searched for headers/footers")
-    margin_tolerance: float = Field(3.0, description="Max vertical drift (pt) of a recurring line")
-    recurrence_ratio: float = Field(0.4, description="Share of pages a margin line must hit")
+    margin_band_ratio: float = Field(
+        0.12, ge=0, le=0.5, description="Image logo band / page height"
+    )
+    margin_search_ratio: float = Field(
+        0.25, ge=0, le=0.5, description="Outer band searched for headers/footers"
+    )
+    margin_tolerance: float = Field(
+        3.0, ge=0, le=50, description="Max vertical drift (pt) of a recurring line"
+    )
+    recurrence_ratio: float = Field(
+        0.4, ge=0, le=1, description="Share of pages a margin line must hit"
+    )
 
     # Pass 2 - structure
-    heading_size_delta: float = Field(0.4, description="pt above body size to be a heading")
-    paragraph_break_ratio: float = Field(1.8, description="Line pitch / font size for a new para")
-    toc_min_lines: int = Field(5, description="Min TOC-like lines on a page to flag a TOC")
-    snippet_length: int = Field(80, description="Max characters of the mapping snippet")
+    heading_size_delta: float = Field(
+        0.4, ge=0, le=20, description="pt above body size to be a heading"
+    )
+    paragraph_break_ratio: float = Field(
+        1.8, ge=0.5, le=10, description="Line pitch / font size for a new para"
+    )
+    toc_min_lines: int = Field(
+        5, ge=1, le=1000, description="Min TOC-like lines on a page to flag a TOC"
+    )
+    snippet_length: int = Field(
+        80, ge=10, le=1000, description="Max characters of the mapping snippet"
+    )
 
     # Output filtering: elements listed here are kept, every other one is removed
     keep: frozenset[ElementKind] = Field(frozenset(), description="Elements to keep")
@@ -59,22 +85,32 @@ class Settings(BaseModel):
     pages: str | None = Field(None, description="Page selection such as '1-5,10-20,30-'")
 
     # Images
-    image_dpi: int = Field(200, description="Resolution of the extracted PNG figures")
-    image_min_area: float = Field(2500.0, description="Smaller images (pt^2) are decoration")
+    image_dpi: int = Field(
+        200, ge=72, le=600, description="Resolution of the extracted PNG figures"
+    )
+    image_min_area: float = Field(
+        2500.0, ge=0, le=1000000, description="Smaller images (pt^2) are decoration"
+    )
     tables_as_images: int | None = Field(
         None, description="Render tables of at least this many rows as images (None: never)"
     )
     tables_html: bool = Field(False, description="Insert tables as HTML (colours, text styles)")
-    table_merge_tolerance: float = Field(3.0, description="Max drift (pt) of the column borders")
+    table_merge_tolerance: float = Field(
+        3.0, ge=0, le=50, description="Max drift (pt) of the column borders"
+    )
     tables_keep_text: bool = Field(False, description="Keep the text of tables rendered as images")
 
     # Routing and OCR
     engine: Engine = Field("auto", description="Force one engine instead of the fallback chain")
     ocr_enabled: bool = True
     ocr_language: str = Field("fra+eng", description="Tesseract language codes")
-    ocr_dpi: int = Field(300, description="Rendering resolution for OCR")
-    ocr_min_chars: int = Field(30, description="Fewer OCR chars on a page => engine failed")
-    garbled_ratio: float = Field(0.2, description="Share of U+FFFD chars => text layer unusable")
+    ocr_dpi: int = Field(300, ge=72, le=600, description="Rendering resolution for OCR")
+    ocr_min_chars: int = Field(
+        30, ge=0, le=10000, description="Fewer OCR chars on a page => engine failed"
+    )
+    garbled_ratio: float = Field(
+        0.2, ge=0, le=1, description="Share of U+FFFD chars => text layer unusable"
+    )
 
     @field_validator("pages")
     @classmethod

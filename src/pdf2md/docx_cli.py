@@ -23,6 +23,7 @@ from pdf2md.plugin_cli import (
     run_plugin_commands,
 )
 from pdf2md.progress import PageProgress
+from pdf2md.settings_cli import add_setting_arguments, format_settings, parse_overrides
 
 logger = logging.getLogger("docx2md")
 
@@ -58,7 +59,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--no-progress", action="store_true", help="hide the progress bar")
     parser.add_argument("-v", "--verbose", action="store_true")
     add_plugin_arguments(parser)
+    add_setting_arguments(parser)
     args = parser.parse_args(argv)
+    if args.list_settings:
+        print(format_settings())  # noqa: T201 - the command's output
+        return 0
+    try:
+        overrides = parse_overrides(args.settings)
+    except ValueError as exc:
+        parser.error(str(exc))
 
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
@@ -74,7 +83,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     except PluginError as exc:
         logger.error("%s", exc)
         return 2
-    settings = Settings(keep=keep_set(args.keep), pages=args.pages, tables_html=args.tables_html)
+    settings = Settings(
+        **{
+            "keep": keep_set(args.keep),
+            "pages": args.pages,
+            "tables_html": args.tables_html,
+            **overrides,
+        }
+    )
     failures = 0
     with logging_redirect_tqdm():
         for index, path in enumerate(args.docs, start=1):

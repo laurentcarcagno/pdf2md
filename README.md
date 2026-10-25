@@ -148,6 +148,26 @@ Coordinates are PDF points, origin top-left. They are `null` for Marker blocks, 
 for OCR pages (derived from the 300 dpi render after deskew). A word split by an end-of-line
 hyphen keeps its hyphen (`com-pound`) so compounds like `pas-à-pas` stay intact.
 
+
+## Tuning the detection thresholds
+
+Every threshold of the pipeline is a field of `Settings` (`src/pdf2md/models.py`) and can be changed with
+`--set NAME=VALUE` (repeatable; both `pdf2md` and `docx2md`, and it wins over the dedicated options).
+`--list-settings` prints them with their default, bounds and meaning. For example:
+
+```bash
+pdf2md doc.pdf --set recurrence_ratio=0.3 --set margin_search_ratio=0.2   # header/footer detection
+pdf2md --list-settings
+```
+
+| Group | Settings |
+|---|---|
+| Page classification | `scanned_char_threshold`, `scanned_image_ratio`, `column_min_words`, `column_gutter_ratio`, `column_side_ratio`, `complex_page_ratio`, `garbled_ratio` |
+| Headers, footers, logos | `margin_band_ratio`, `margin_search_ratio`, `margin_tolerance`, `recurrence_ratio` |
+| Structure | `heading_size_delta`, `paragraph_break_ratio`, `toc_min_lines`, `snippet_length` |
+| Images and tables | `image_min_area`, `table_merge_tolerance` (and `--image-dpi`, `--tables-*`) |
+| OCR | `ocr_dpi`, `ocr_min_chars` (and `--ocr-lang`, `--no-ocr`) |
+
 ## Post-processing plugins
 
 A plugin is a Python script that transforms the produced Markdown (filtering, removing text,
