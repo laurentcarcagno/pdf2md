@@ -25,7 +25,7 @@ Options:
                            a range beyond a PDF's last page is ignored
   -k, --keep ELEMENTS      elements to keep, space or comma separated; all others are removed.
                            Values: header footer toc lof lot all (default: none kept)
-  -e, --engine ENGINE      [PDF] auto (default) | geometric | docling | marker | ocr
+  -e, --engine ENGINE      [PDF] auto (default) | geometric | docling | ocr
       --ocr-lang LANGS     [PDF] Tesseract languages (default: fra+eng)
       --ocr-dpi N          [PDF] OCR rendering resolution (default: 300)
       --no-ocr             [PDF] never run OCR

@@ -18,7 +18,6 @@ from pdf2md.extract import extract_pages
 from pdf2md.fallback import extract_pymupdf_blocks
 from pdf2md.filters import apply_keep
 from pdf2md.images import extract_images, insert_images
-from pdf2md.marker_engine import extract_marker
 from pdf2md.models import (
     Block,
     Classification,
@@ -110,10 +109,6 @@ def _step_docling(ctx: _Context, pages: list[int]) -> PageBlocks:
     return extract_docling(ctx.pdf_path, pages, ctx.settings.ocr_language, ctx.tick) or {}
 
 
-def _step_marker(ctx: _Context, pages: list[int]) -> PageBlocks:
-    return extract_marker(ctx.pdf_path, pages, ctx.tick) or {}
-
-
 def _step_pymupdf(ctx: _Context, pages: list[int]) -> PageBlocks:
     return extract_pymupdf_blocks(ctx.doc, pages, ctx.tick)
 
@@ -122,16 +117,15 @@ _STEPS: dict[str, Step] = {
     "geometric": _step_geometric,
     "ocr": _step_ocr,
     "docling": _step_docling,
-    "marker": _step_marker,
     "pymupdf": _step_pymupdf,
 }
 
 # Fallback chain per page kind (first engine that returns blocks for a page wins).
 _CHAINS: dict[PageKind, tuple[str, ...]] = {
-    PageKind.NATIVE: ("geometric", "docling", "marker", "pymupdf"),
-    PageKind.MULTI_COLUMN: ("docling", "marker", "geometric", "pymupdf"),
-    PageKind.SCANNED: ("ocr", "docling", "marker", "pymupdf"),
-    PageKind.GARBLED: ("ocr", "docling", "marker", "pymupdf"),
+    PageKind.NATIVE: ("geometric", "docling", "pymupdf"),
+    PageKind.MULTI_COLUMN: ("docling", "geometric", "pymupdf"),
+    PageKind.SCANNED: ("ocr", "docling", "pymupdf"),
+    PageKind.GARBLED: ("ocr", "docling", "pymupdf"),
 }
 
 

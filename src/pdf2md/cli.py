@@ -64,7 +64,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument(
         "--engine",
-        choices=["auto", "geometric", "docling", "marker", "ocr"],
+        choices=["auto", "geometric", "docling", "ocr"],
         default="auto",
         help="force one engine instead of the automatic fallback chain",
     )

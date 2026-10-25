@@ -280,7 +280,7 @@ def insert_images(
     """Return ``blocks_by_page`` with image blocks inserted at their vertical position.
 
     An image goes before the first block that starts below its top edge. Blocks without
-    coordinates (Marker) cannot be compared, so images of such pages go at the end.
+    coordinates cannot be compared, so images of such pages go at the end.
     Rejected images are deleted from disk when ``base_dir`` (parent of the image folder) is given.
     """
     merged = {number: list(blocks) for number, blocks in blocks_by_page.items()}

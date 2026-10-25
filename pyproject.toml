@@ -23,8 +23,6 @@ ocr = [
     "opencv-python-headless>=4.11",
 ]
 docling = ["docling>=2.140"]
-# marker-pdf pins pillow<11, which has no wheel on Python 3.14: see the README.
-marker = ["marker-pdf>=2.0"]
 all = ["pdf2md[ocr,docling]"]
 dev = ["pytest>=8", "ruff>=0.5", "mypy>=1.10"]
 [project.scripts]

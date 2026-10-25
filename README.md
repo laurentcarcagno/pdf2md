@@ -12,9 +12,9 @@ the document.
 
 | Page kind | Chain |
 |---|---|
-| native text | geometric > docling > marker > pymupdf |
-| multi-column (or most pages complex) | docling > marker > geometric > pymupdf |
-| scanned / garbled | ocr > docling > marker > pymupdf |
+| native text | geometric > docling > pymupdf |
+| multi-column (or most pages complex) | docling > geometric > pymupdf |
+| scanned / garbled | ocr > docling > pymupdf |
 
 - **geometric** (`extract.py`, `clean.py`, `structure.py`; pdfplumber): exact line coordinates,
   recurring header/footer detection: lines in the top/bottom quarter of the page whose text
@@ -27,7 +27,6 @@ the document.
   word boxes) and RapidOCR as second choice. The recognised lines go through the same cleaning
   and structuring as native pages.
 - **docling** (`docling_engine.py`): layout and table models, native header/footer/index labels.
-- **marker** (`marker_engine.py`): deep-learning Markdown; no coordinates (`null` in the JSON).
 - **pymupdf** (`fallback.py`): plain text blocks with boxes, last resort.
 
 After the engines: `toc.py` tags tables of contents / figures / tables (titled sections running
@@ -51,13 +50,7 @@ ROCm 7.1 on the host) install the ROCm build instead, after removing the `nvidia
 .venv/bin/python -c "import torch; print(torch.cuda.is_available())"   # True on ROCm too
 ```
 
-Docling and Marker then use the GPU automatically; OCR (Tesseract, RapidOCR) stays on the CPU.
-
-Marker is optional. Its `marker-pdf` requirement `pillow<11` has no wheel on Python 3.14, so
-there it is installed without dependency resolution: `pip install --no-deps marker-pdf surya-ocr`
-then `pip install anthropic google-genai markdown2 markdownify "openai<3" pdftext rapidfuzz
-scikit-learn platformdirs`. Marker's code is Apache-2.0; its model weights use a modified
-OpenRAIL-M licence (free for research, personal use and small companies).
+Docling then uses the GPU automatically; OCR (Tesseract, RapidOCR) stays on the CPU.
 
 ## Dependencies and why
 
@@ -71,9 +64,8 @@ OpenRAIL-M licence (free for research, personal use and small companies).
 | opencv-python-headless | deskew/denoise before OCR | ~50 MB |
 | rapidocr, onnxruntime | second OCR engine, better on noisy scans | ~200 MB |
 | docling | layout/table models for complex pages | torch, models (GBs) |
-| marker-pdf | second deep-learning fallback | torch, models (GBs) |
 
-Docling and Marker only run on pages the geometric pass cannot handle.
+Docling only runs on pages the geometric pass cannot handle.
 
 ## Usage
 
@@ -86,12 +78,12 @@ Docling and Marker only run on pages the geometric pass cannot handle.
 |---|---|
 | `--keep ELEMENT...` | keep `header footer toc lof lot` (or `all`); everything not listed is removed. Default: remove all |
 | `-p`, `--pages RANGES` | convert only these pages: `10-` (10 to end), `-10` (1 to 10), `15-18`, `7`, or several `1-5,10-20,30-` (brackets accepted). Page numbers in the output stay those of the PDF; ranges past the last page are ignored |
-| `--engine` | `auto` (default), `geometric`, `docling`, `marker`, `ocr`: force one engine (then pymupdf) |
+| `--engine` | `auto` (default), `geometric`, `docling`, `ocr`: force one engine (then pymupdf) |
 | `--ocr-lang`, `--ocr-dpi`, `--no-ocr` | OCR languages (default `fra+eng`), resolution (300), disable |
 | `--anchors` | prefix each block with `<!-- p:ID page:N -->` |
 | `--no-images` | do not extract figures (by default they are saved to `<output>/<pdf name>/assets/` and referenced from the Markdown) |
 | `--tables-as-images [MIN_ROWS]` | render each table (of at least MIN_ROWS rows, default 1) as a PNG of its area in the page (`assets/pNNNN_tNN.png`), alt text = the "Table …" caption when there is one; the JSON keeps the coordinates. Tables without coordinates or tagged as TOC/LOF/LOT stay text; needs images (incompatible with `--no-images`) |
-| `--tables-html` | insert tables as HTML (`<table>` on consecutive lines, no blank line) instead of Markdown, keeping cell background colours, `colspan`/`rowspan`, and the text styles: bold, italic, underline, strikethrough, superscript, text colour. PDF: pdfplumber gives the grid, PyMuPDF the fonts, colours, filled rectangles and thin lines under/through the text; only for pages read by the geometric engine (pages handled by OCR/docling/marker keep Markdown tables). Word (`docx2md`): run formatting, highlight, cell shading and merged cells; formatting that comes only from a table style is not resolved. With it, a table continued on the next page (same column borders within 3 pt, nothing but headers/footers in between) is merged into one table and the title rows repeated at the top of each page are kept once (the merged block keeps the page and coordinates of its first part). Exclusive with `--tables-as-images` |
+| `--tables-html` | insert tables as HTML (`<table>` on consecutive lines, no blank line) instead of Markdown, keeping cell background colours, `colspan`/`rowspan`, and the text styles: bold, italic, underline, strikethrough, superscript, text colour. PDF: pdfplumber gives the grid, PyMuPDF the fonts, colours, filled rectangles and thin lines under/through the text; only for pages read by the geometric engine (pages handled by OCR/docling keep Markdown tables). Word (`docx2md`): run formatting, highlight, cell shading and merged cells; formatting that comes only from a table style is not resolved. With it, a table continued on the next page (same column borders within 3 pt, nothing but headers/footers in between) is merged into one table and the title rows repeated at the top of each page are kept once (the merged block keeps the page and coordinates of its first part). Exclusive with `--tables-as-images` |
 | `--tables-keep-text` | with `--tables-as-images`, keep the table text as Markdown in a `<details>` block under the image |
 | `--image-dpi N` | resolution of the saved PNG figures (default 200) |
 | `--no-json` | write only the Markdown, no `.json` mapping |
@@ -118,8 +110,7 @@ drawing that merely outlines a table already in the text. Pictures side by side 
 text drawn as a picture, Tesseract reads it and the text becomes its alt text, so it is
 searchable and appears in the JSON `snippet`. A repeated strip in the body (the same `HAR SSOW-`
 piece on every page) is kept; only repeats in the top/bottom margin count as logos. Mapping entries have `kind: "image"`
-and an `image_path`. Blocks from Marker have no coordinates, so the images of such pages are
-appended at the end of the page.
+and an `image_path`.
 
 ## Output
 
@@ -144,7 +135,7 @@ Each PDF gets its own folder, `<output>/<pdf name>/`:
 
 `kind` is `heading|paragraph|list|code|table|toc|image`; `element` is `header|footer|toc|
 list_of_figures|list_of_tables` for tagged blocks (only present with `--keep`), else `null`.
-Coordinates are PDF points, origin top-left. They are `null` for Marker blocks, and approximate
+Coordinates are PDF points, origin top-left. They are approximate
 for OCR pages (derived from the 300 dpi render after deskew). A word split by an end-of-line
 hyphen keeps its hyphen (`com-pound`) so compounds like `pas-à-pas` stay intact.
 

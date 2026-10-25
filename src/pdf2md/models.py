@@ -15,13 +15,12 @@ ALL_ELEMENTS: tuple[ElementKind, ...] = (
     "list_of_figures",
     "list_of_tables",
 )
-Engine = Literal["auto", "geometric", "docling", "marker", "ocr"]
+Engine = Literal["auto", "geometric", "docling", "ocr"]
 SourcePass = Literal[
     "pass2_pdfplumber",
     "ocr_tesseract",
     "ocr_rapidocr",
     "docling",
-    "marker",
     "pass3_pymupdf",
     "pymupdf_image",
     "docx",

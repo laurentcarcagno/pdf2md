@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-_NOISY = ("docling", "RapidOCR", "httpx", "huggingface_hub", "surya", "marker")
+_NOISY = ("docling", "RapidOCR", "httpx", "huggingface_hub")
 
 
 class _MinWarning(logging.Filter):
