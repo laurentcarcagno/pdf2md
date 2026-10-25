@@ -15,6 +15,7 @@ from pdf2md.plugins import (
     load_plugins,
     post_process_outputs,
     register_plugin,
+    unregister_plugin,
 )
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,13 @@ def add_plugin_arguments(parser: argparse.ArgumentParser) -> None:
         help="register SCRIPT.py (copied into the plugin folder) under PLUGIN_NAME, then exit "
         "unless input files are also given",
     )
+    parser.add_argument(
+        "--unregister-plugin",
+        action="append",
+        default=[],
+        metavar="PLUGIN_NAME",
+        help="forget PLUGIN_NAME and delete its copied script",
+    )
     parser.add_argument("--list-plugins", action="store_true", help="list registered plugins")
     parser.add_argument(
         "--plugin-dir",
@@ -49,7 +57,9 @@ def add_plugin_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def run_plugin_commands(args: argparse.Namespace) -> bool:
-    """Execute ``--register-plugin`` / ``--list-plugins``; return True if any was requested.
+    """Run ``--register-plugin``, ``--unregister-plugin`` and ``--list-plugins``.
+
+    Return True if any was requested.
 
     Raises:
         PluginError: a registration was refused.
@@ -57,6 +67,9 @@ def run_plugin_commands(args: argparse.Namespace) -> bool:
     handled = False
     for name, script in args.register_plugin:
         register_plugin(name, Path(script), args.plugin_dir)
+        handled = True
+    for name in args.unregister_plugin:
+        unregister_plugin(name, args.plugin_dir)
         handled = True
     if args.list_plugins:
         plugins = list_plugins(args.plugin_dir)

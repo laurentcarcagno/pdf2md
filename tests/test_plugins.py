@@ -12,6 +12,7 @@ from pdf2md.plugins import (
     load_plugin,
     post_process_outputs,
     register_plugin,
+    unregister_plugin,
 )
 
 UPPER = "def process(markdown, context):\n    return markdown.upper()\n"
@@ -32,6 +33,23 @@ def test_register_copies_script_and_records_name(tmp_path: Path) -> None:
     assert list_plugins(plugin_dir) == {"shout it": copy}
     registry = json.loads((plugin_dir / "registry.json").read_text(encoding="utf-8"))
     assert registry == {"shout it": copy.name}
+
+
+def test_unregister_forgets_the_name_and_deletes_the_copy(tmp_path: Path) -> None:
+    plugin_dir = tmp_path / "plugins"
+    keep = register_plugin("keep", _script(tmp_path, "a.py", UPPER), plugin_dir)
+    drop = register_plugin("drop", _script(tmp_path, "b.py", EXCLAIM), plugin_dir)
+    unregister_plugin("drop", plugin_dir)
+    assert list_plugins(plugin_dir) == {"keep": keep} and not drop.exists()
+    with pytest.raises(PluginError, match="unknown plugin 'drop'"):
+        unregister_plugin("drop", plugin_dir)
+
+
+def test_cli_unregister_plugin(tmp_path: Path) -> None:
+    plugin_dir = tmp_path / "plugins"
+    register_plugin("shout", _script(tmp_path, "u.py", UPPER), plugin_dir)
+    assert pdf_main(["--unregister-plugin", "shout", "--plugin-dir", str(plugin_dir)]) == 0
+    assert list_plugins(plugin_dir) == {}
 
 
 def test_registering_a_name_again_replaces_its_script(tmp_path: Path) -> None:

@@ -157,6 +157,7 @@ renaming files, ...). `pdf2md`, `docx2md` and `convert_dir.sh` share these optio
 |---|---|
 | `--register-plugin "NAME" SCRIPT.py` | associate NAME with SCRIPT.py and **copy the script into the plugin folder**; registering an existing name replaces its script. Without input files, nothing is converted. Can be repeated |
 | `--post-process NAME` | apply the plugin to each produced `.md`; repeat the option to chain plugins, applied **in the order given**, each receiving the output of the previous one |
+| `--unregister-plugin NAME` | forget NAME and delete its copied script (can be repeated) |
 | `--list-plugins` | show the registered plugins |
 | `--plugin-dir DIR` | plugin folder (default: `$PDF2MD_PLUGIN_DIR`, else `~/.config/pdf2md/plugins`) |
 

@@ -153,6 +153,24 @@ def register_plugin(name: str, script: Path, plugin_dir: Path | None = None) -> 
     return target
 
 
+def unregister_plugin(name: str, plugin_dir: Path | None = None) -> None:
+    """Forget the plugin ``name`` and delete its copied script.
+
+    Raises:
+        PluginError: no plugin is registered under that name.
+    """
+    plugin_dir = plugin_dir or default_plugin_dir()
+    registry = _read_registry(plugin_dir)
+    if name not in registry:
+        known = ", ".join(repr(n) for n in registry) or "none registered"
+        raise PluginError(f"unknown plugin {name!r} (known: {known})")
+    file_name = registry.pop(name)
+    _write_registry(plugin_dir, registry)
+    if file_name not in registry.values():
+        (plugin_dir / file_name).unlink(missing_ok=True)
+    logger.info("plugin %r unregistered", name)
+
+
 def list_plugins(plugin_dir: Path | None = None) -> dict[str, Path]:
     """Return ``name -> script path`` of every registered plugin."""
     plugin_dir = plugin_dir or default_plugin_dir()
