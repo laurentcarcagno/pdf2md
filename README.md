@@ -85,6 +85,8 @@ Docling only runs on pages the geometric pass cannot handle.
 | `--tables-as-images [MIN_ROWS]` | render each table (of at least MIN_ROWS rows, default 1) as a PNG of its area in the page (`assets/pNNNN_tNN.png`), alt text = the "Table …" caption when there is one; the JSON keeps the coordinates. Tables without coordinates or tagged as TOC/LOF/LOT stay text; needs images (incompatible with `--no-images`) |
 | `--tables-html` | insert tables as HTML (`<table>` on consecutive lines, no blank line) instead of Markdown, keeping cell background colours, `colspan`/`rowspan`, and the text styles: bold, italic, underline, strikethrough, superscript, text colour. PDF: pdfplumber gives the grid, PyMuPDF the fonts, colours, filled rectangles and thin lines under/through the text; only for pages read by the geometric engine (pages handled by OCR/docling keep Markdown tables). Word (`docx2md`): run formatting, highlight, cell shading and merged cells; formatting that comes only from a table style is not resolved. With it, a table continued on the next page (same column borders within 3 pt, nothing but headers/footers in between) is merged into one table and the title rows repeated at the top of each page are kept once (the merged block keeps the page and coordinates of its first part). Exclusive with `--tables-as-images` |
 | `--tables-keep-text` | with `--tables-as-images`, keep the table text as Markdown in a `<details>` block under the image |
+| `--set NAME=VALUE` | change any other threshold of `Settings` (repeatable), e.g. `--set recurrence_ratio=0.3`; see [Tuning the detection thresholds](#tuning-the-detection-thresholds). Also in `docx2md` |
+| `--list-settings` | print every tunable setting with its type, default, bounds and meaning, then exit |
 | `--image-dpi N` | resolution of the saved PNG figures (default 200) |
 | `--no-json` | write only the Markdown, no `.json` mapping |
 | `--no-progress` | hide the progress bar (it is also hidden automatically when stderr is not a terminal) |
@@ -150,6 +152,16 @@ Every threshold of the pipeline is a field of `Settings` (`src/pdf2md/models.py`
 pdf2md doc.pdf --set recurrence_ratio=0.3 --set margin_search_ratio=0.2   # header/footer detection
 pdf2md --list-settings
 ```
+
+Rules:
+
+- `VALUE` is converted to the type of the field (`int`, `float`, `bool` as `true`/`false`, `str`).
+  An unknown name, a value of the wrong type or outside the bounds shown by `--list-settings`
+  stops the program with an error message before any conversion (exit code 2).
+- `--set` is applied last, so it overrides the value given by a dedicated option
+  (`--ocr-dpi`, `--image-dpi`, ...).
+- The list comes from `Settings` itself: a threshold added there can be set with `--set` at once,
+  with no change to the command line.
 
 | Group | Settings |
 |---|---|
